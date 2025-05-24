@@ -1,3 +1,5 @@
+# streamlit_app.py
+
 import streamlit as st
 import os
 import subprocess
@@ -28,8 +30,8 @@ if st.button("🔄 Clone Repo", key="clone_repo"):
         try:
             clone_repo(repo_url, REPO_DIR)
             st.success("✅ Repo cloned.")
-            for key in ("branches", "commits", "files", "commit"):
-                st.session_state.pop(key, None)
+            for k in ("branches", "commits", "files", "commit"):
+                st.session_state.pop(k, None)
         except Exception as e:
             st.error(f"Clone failed: {e}")
 
@@ -47,8 +49,8 @@ if "branches" in st.session_state:
         try:
             checkout_branch(branch, REPO_DIR)
             st.success(f"Switched to branch `{branch}`")
-            for key in ("commits", "files", "commit"):
-                st.session_state.pop(key, None)
+            for k in ("commits", "files", "commit"):
+                st.session_state.pop(k, None)
         except Exception as e:
             st.error(f"Branch checkout failed: {e}")
 
@@ -102,7 +104,7 @@ if "files" in st.session_state and "commit" in st.session_state:
     with tabs[1]:
         st.markdown("#### Pylint Report")
         pylint_out = run_pylint_on_file(file_sel, REPO_DIR)
-        with st.expander("Show Pylint output", expanded=False, key="pylint_expander"):
+        with st.expander("Show Pylint output", expanded=False):
             st.code(pylint_out, language="text")
 
     # ---- Coverage Tab ----
@@ -114,11 +116,11 @@ if "files" in st.session_state and "commit" in st.session_state:
         st.markdown("#### Coverage Summary")
         if not report.strip() or report.startswith("[Coverage Error]"):
             st.warning("No tests found or coverage run failed → 0% coverage.")
-            st.metric("Coverage %", "0.0%", key="cov_metric_zero")
+            st.metric("Coverage %", "0.0%")
         else:
             cov_map, miss_map = parse_coverage(report)
             pct = cov_map.get(file_sel, 0.0)
-            st.metric("Coverage %", f"{pct:.1f}%", key="cov_metric")
+            st.metric("Coverage %", f"{pct:.1f}%")
             if pct == 100.0:
                 st.success("✔️ Fully covered")
             else:
