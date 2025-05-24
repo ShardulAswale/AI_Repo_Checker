@@ -1,3 +1,7 @@
 streamlit
-requests
+gitpython
 flake8
+coverage
+pandas
+pytest
+pylint
