@@ -1,58 +1,69 @@
 # git_fetch.py
 
 import os
-import subprocess
+import shutil
 from git import Repo
 from datetime import datetime
 
 REPO_DIR = "repo"
 
 def clone_repo(repo_url: str, local_dir: str = REPO_DIR) -> Repo:
-    if os.path.exists(local_dir):
-        subprocess.run(["rm", "-rf", local_dir], check=True)
+    """
+    Clone (or re-clone) the GitHub repo into local_dir.
+    """
+    if os.path.isdir(local_dir):
+        shutil.rmtree(local_dir)
     return Repo.clone_from(repo_url, local_dir)
 
 def get_branches(repo_path: str = REPO_DIR) -> list[str]:
+    """
+    Return a list of remote branch names (e.g. ['main','dev',...]).
+    """
     repo = Repo(repo_path)
+    repo.remotes.origin.fetch()
     return sorted({ref.remote_head for ref in repo.remotes.origin.refs})
 
 def checkout_branch(branch: str, repo_path: str = REPO_DIR):
+    """
+    Checkout a branch by name, creating a local tracking branch if needed.
+    """
+    repo = Repo(repo_path)
+    git = repo.git
     try:
-        subprocess.run(["git", "checkout", branch], cwd=repo_path, check=True)
-    except subprocess.CalledProcessError:
-        subprocess.run(
-            ["git", "checkout", "-t", f"origin/{branch}"],
-            cwd=repo_path, check=True
-        )
+        git.checkout(branch)
+    except Exception:
+        git.checkout("-t", f"origin/{branch}")
 
-def get_commits(n: int = 10, repo_path: str = REPO_DIR) -> list[dict]:
-    fmt = "%H%x09%an%x09%ad%x09%s"
-    raw = subprocess.check_output(
-        ["git", "log", f"-n{n}", "--pretty=format:" + fmt],
-        cwd=repo_path
-    ).decode()
-    commits = []
-    for line in raw.splitlines():
-        h, author, date_str, msg = line.split("\t", 3)
-        date = datetime.strptime(date_str, "%a %b %d %H:%M:%S %Y %z")
-        commits.append({
-            "hash":    h,
-            "author":  author,
-            "date":    date.isoformat(),
-            "message": msg
+def get_commits(repo_path: str = REPO_DIR, max_count: int = 10) -> list[dict]:
+    """
+    Return the last `max_count` commits on the current branch, newest first.
+    Each dict contains: hash, author, date (ISO), message.
+    """
+    repo = Repo(repo_path)
+    commits = list(repo.iter_commits(repo.active_branch, max_count=max_count))
+    result = []
+    for c in commits:
+        result.append({
+            "hash":    c.hexsha,
+            "author":  c.author.name,
+            "date":    c.committed_datetime.isoformat(),
+            "message": c.message.strip()
         })
-    return commits
+    return result
+
+def checkout_commit(commit_hash: str, repo_path: str = REPO_DIR):
+    """
+    Checkout the given commit (detached HEAD).
+    """
+    repo = Repo(repo_path)
+    repo.git.checkout(commit_hash)
 
 def list_changed_python_files(commit_hash: str, repo_path: str = REPO_DIR) -> list[str]:
     """
-    Return a list of .py files changed in the given commit.
-    (Added, modified, or deleted—all returned as filenames.)
+    List all .py files changed in the given commit.
     """
-    raw = subprocess.check_output(
-        ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit_hash],
-        cwd=repo_path
-    ).decode().splitlines()
-    return [f for f in raw if f.endswith(".py")]
-
-def checkout_commit(commit_hash: str, repo_path: str = REPO_DIR):
-    subprocess.run(["git", "checkout", commit_hash], cwd=repo_path, check=True)
+    repo = Repo(repo_path)
+    raw = repo.git.diff_tree(
+        "--no-commit-id", "--name-only", "-r", commit_hash
+    )
+    return [f for f in raw.splitlines() if f.endswith(".py")]
