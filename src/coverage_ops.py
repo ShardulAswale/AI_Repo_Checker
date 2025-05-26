@@ -1,5 +1,3 @@
-# coverage_ops.py
-
 import logging
 import os
 from coverage import Coverage

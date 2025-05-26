@@ -1,5 +1,3 @@
-# lint_ops.py
-
 import os
 import logging
 from flake8.api import legacy as flake8

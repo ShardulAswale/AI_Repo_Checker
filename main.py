@@ -1,15 +1,13 @@
-# main.py
-
 import argparse
 import logging
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
-from git_ops import clone_repo, get_last_commits
-from report_generator import analyze_commits, aggregate_by_committer
-from lint_ops import count_lint_issues
-from coverage_ops import measure_coverage
+from src.git_ops import clone_repo, get_last_commits
+from src.report_generator import analyze_commits, aggregate_by_committer
+from src.lint_ops import count_lint_issues
+from src.coverage_ops import measure_coverage
 from git import Repo
 
 logging.basicConfig(

@@ -1,5 +1,3 @@
-# reporter.py
-
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -9,9 +7,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 from git import Repo
 
-from git_ops import checkout_commit
-from lint_ops import count_lint_issues
-from coverage_ops import measure_coverage
+from src.git_ops import checkout_commit
+from src.lint_ops import count_lint_issues
+from src.coverage_ops import measure_coverage
 
 logger = logging.getLogger(__name__)
 
