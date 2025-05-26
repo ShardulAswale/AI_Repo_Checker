@@ -1,5 +1,3 @@
-# tests/test_code_coverage.py
-
 import pytest
 from code_coverage import parse_coverage
 

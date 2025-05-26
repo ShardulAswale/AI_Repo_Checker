@@ -1,14 +1,11 @@
-# tests/test_lint.py
-
-import tempfile
-import os
 import pytest
 from lint import run_pylint_on_file
+import tempfile
+import os
 
 def test_run_pylint_on_file(tmp_path):
-    # create a file with a lint issue: missing docstring and unused variable
-    py = tmp_path / "bad.py"
-    py.write_text("x=1\n\ndef foo():\n    return x\n")
-    output = run_pylint_on_file(str(py.name), str(tmp_path))
-    # should contain a missing‐docstring code and possibly unused‐variable
+    # Create a file with a lint error: missing docstring
+    f = tmp_path / "bad.py"
+    f.write_text("x = 1\n")
+    output = run_pylint_on_file("bad.py", str(tmp_path))
     assert "missing-module-docstring" in output or "missing-function-docstring" in output

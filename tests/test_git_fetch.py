@@ -1,50 +1,77 @@
-# tests/test_git_fetch.py
+# git_fetch.py
 
 import os
-import tempfile
-import subprocess
-import pytest
+import shutil
 from git import Repo
-import git_fetch
 
-@pytest.fixture
-def tmp_repo(tmp_path):
-    # Initialize a bare repo with two commits
-    origin = tmp_path / "origin"
-    origin.mkdir()
-    repo = Repo.init(origin)
-    # Commit1
-    f1 = origin / "a.py"
-    f1.write_text("print('hello')\n")
-    repo.index.add([str(f1.name)])
-    repo.index.commit("init commit")
-    # Commit2: change a.py
-    f1.write_text("print('world')\n")
-    repo.index.add([str(f1.name)])
-    repo.index.commit("second commit")
-    return origin
+REPO_DIR = "repo"
 
-def test_clone_and_get_commits(tmp_repo, tmp_path):
-    clone_dir = tmp_path / "clone"
-    # Clone from local path via file://
-    cloned = git_fetch.clone_repo(f"file://{tmp_repo}", str(clone_dir))
-    assert (clone_dir / "a.py").exists()
-    # Fetch commits (default max_count=10)
-    commits = git_fetch.get_commits(repo_path=str(clone_dir))
-    assert isinstance(commits, list)
-    assert len(commits) == 2
-    hashes = [c["hash"] for c in commits]
-    # Latest commit first
-    assert commits[0]["message"] == "second commit"
-    # Test checkout and listing
-    first_hash = commits[-1]["hash"]
-    git_fetch.checkout_commit(first_hash, str(clone_dir))
-    changed = git_fetch.list_changed_python_files(first_hash, str(clone_dir))
-    assert "a.py" in changed
+def clone_repo(repo_url: str, local_dir: str = REPO_DIR) -> Repo:
+    """
+    Clone (or re-clone) the GitHub repo into local_dir.
+    """
+    if os.path.isdir(local_dir):
+        shutil.rmtree(local_dir)
+    return Repo.clone_from(repo_url, local_dir)
 
-def test_get_branches(tmp_repo, tmp_path):
-    # create a branch and test get_branches
-    repo = Repo(str(tmp_repo))
-    repo.git.checkout("-b", "dev")
-    branches = git_fetch.get_branches(repo_path=str(tmp_repo))
-    assert "dev" in branches
+def get_branches(repo_path: str = REPO_DIR) -> list[str]:
+    """
+    Return a list of branch names.  
+    If there's an 'origin' remote, list its refs; otherwise fall back to local heads.
+    """
+    repo = Repo(repo_path)
+    try:
+        repo.remotes.origin.fetch()
+        return sorted({ref.remote_head for ref in repo.remotes.origin.refs})
+    except (AttributeError, ValueError):
+        # no origin remote; use local branches
+        return sorted([head.name for head in repo.heads])
+
+def checkout_branch(branch: str, repo_path: str = REPO_DIR):
+    """
+    Checkout a branch by name, creating a tracking branch if needed.
+    """
+    repo = Repo(repo_path)
+    git = repo.git
+    try:
+        git.checkout(branch)
+    except Exception:
+        git.checkout("-t", f"origin/{branch}")
+
+def get_commits(repo_path: str = REPO_DIR, max_count: int = 10) -> list[dict]:
+    """
+    Return the last `max_count` commits on the current branch, newest first.
+    Each dict contains: hash, author, date (ISO), message.
+    """
+    repo = Repo(repo_path)
+    commits = list(repo.iter_commits(repo.active_branch, max_count=max_count))
+    result = []
+    for c in commits:
+        result.append({
+            "hash":    c.hexsha,
+            "author":  c.author.name,
+            "date":    c.committed_datetime.isoformat(),
+            "message": c.message.strip()
+        })
+    return result
+
+def checkout_commit(commit_hash: str, repo_path: str = REPO_DIR):
+    """
+    Checkout the given commit (detached HEAD).
+    """
+    repo = Repo(repo_path)
+    repo.git.checkout(commit_hash)
+
+def list_changed_python_files(commit_hash: str, repo_path: str = REPO_DIR) -> list[str]:
+    """
+    List all .py files changed in the given commit, including the initial commit.
+    """
+    repo = Repo(repo_path)
+    raw = repo.git.diff_tree(
+        "--root",
+        "--no-commit-id",
+        "--name-only",
+        "-r",
+        commit_hash
+    )
+    return [f for f in raw.splitlines() if f.endswith(".py")]
