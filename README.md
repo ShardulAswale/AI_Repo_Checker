@@ -14,10 +14,16 @@ The **GitHub Commit & Contributor Evaluation Tool** is a Python CLI utility desi
 git clone https://github.com/ShardulAswale/AI_Repo_Checker.git
 cd AI_Repo_Checker
 python -m venv .venv
+```
 # macOS/Linux
+```
 source .venv/bin/activate
+```
 # Windows PowerShell
+```
 .venv\Scripts\Activate.ps1
+```
+```
 pip install -r requirements.txt
 ```
 
